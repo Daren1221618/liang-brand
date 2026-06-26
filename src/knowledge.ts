@@ -1,9 +1,9 @@
 // ============================================================
-// 亮品牌 · 知识库客户端
-// 封装知识库相关的 API 调用
+// 亮品牌 · 知识库客户端（双模式）
 // ============================================================
 
 import api from './api';
+import { isLocalMode } from './storage';
 
 export interface KnowledgeFile {
   id: string;
@@ -31,6 +31,11 @@ export interface SearchResult extends KnowledgeFile {
 }
 
 // ========== API ==========
+
+/** 本地模式：知识库功能不可用，返回空数据或提示 */
+function localNotSupported(action: string): never {
+  throw new Error(`「${action}」在本地模式下不可用，需要部署后端服务`);
+}
 
 /** 上传文件 */
 export async function uploadFiles(

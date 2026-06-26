@@ -1,5 +1,6 @@
 // ============================================================
-// 亮品牌 · 全局状态上下文（含认证）
+// 亮品牌 · 全局状态上下文（含认证，支持双模式）
+// 有后端走 API，无后端走 LocalStorage（GitHub Pages）
 // ============================================================
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
@@ -8,6 +9,12 @@ import type { Role, UserInfo } from './userTypes';
 import * as storage from './storage';
 import api from './api';
 import { loadAndApplyTheme, refreshSettings as apiRefreshSettings } from './theme';
+import { DEFAULT_PUBLIC_SETTINGS } from './localDb';
+import { localLogout as dbLocalLogout, isLocalDbInitialized, initLocalDb } from './localDb';
+
+// 安全 sessionStorage（某些环境不可用）
+function safeSessionGet(key: string): string | null { try { return sessionStorage.getItem(key); } catch { return null; } }
+function safeSessionSet(key: string, value: string | null): void { try { if (value) sessionStorage.setItem(key, value); else sessionStorage.removeItem(key); } catch {} }
 
 interface AppState {
   // 认证
@@ -26,6 +33,7 @@ interface AppState {
   refresh: () => Promise<void>;
   // 加载状态
   loading: boolean;
+  isLocalMode: boolean;
   // 公开设置（套餐名称等，变更时自动刷新）
   publicSettings: Record<string, string>;
   refreshPublicSettings: () => Promise<void>;
@@ -41,8 +49,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [reviewTasks, setReviewTasks] = useState<ReviewTask[]>([]);
   const [loading, setLoading] = useState(true);
+  const [usingLocalMode, setUsingLocalMode] = useState(false);
   const [publicSettings, setPublicSettings] = useState<Record<string, string>>({});
   const settingsInitRef = useRef(false);
+  const initDoneRef = useRef(false);
 
   const role: Role = overrideRole || user?.role || 'consultant';
 
@@ -64,16 +74,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // 登录处理
-  const login = useCallback((userInfo: UserInfo, token: string) => {
+  const doLogin = useCallback((userInfo: UserInfo, token: string) => {
     api.setToken(token);
     setUser(userInfo);
     setOverrideRole(null);
-    sessionStorage.setItem('lb_role', userInfo.role);
+    safeSessionSet('lb_role', userInfo.role);
     refresh();
   }, [refresh]);
 
   // 登出处理
   const logout = useCallback(() => {
+    if (storage.isLocalMode()) {
+      dbLocalLogout();
+    }
     api.setToken(null);
     setUser(null);
     setOverrideRole(null);
@@ -81,7 +94,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setProjects([]);
     setQuotes([]);
     setReviewTasks([]);
-    sessionStorage.removeItem('lb_role');
+    safeSessionSet('lb_role', null);
   }, []);
 
   const updateUser = useCallback((userInfo: UserInfo) => {
@@ -90,11 +103,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const switchRole = useCallback((newRole: Role) => {
     setOverrideRole(newRole);
-    sessionStorage.setItem('lb_role', newRole);
+    safeSessionSet('lb_role', newRole);
   }, []);
 
-  // 刷新公开设置（套餐名称等变更后调用）
+  // 刷新公开设置
   const refreshPublicSettings = useCallback(async () => {
+    if (storage.isLocalMode()) {
+      // 本地模式使用默认设置
+      setPublicSettings({ ...DEFAULT_PUBLIC_SETTINGS });
+      return;
+    }
     try {
       const settings = await apiRefreshSettings();
       setPublicSettings({ ...settings });
@@ -103,43 +121,65 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // 初始化：检查已登录状态
+  // 初始化：检测模式 → 恢复登录态 → 加载数据
   useEffect(() => {
     async function init() {
-      // 加载公开设置（只需一次）
+      if (initDoneRef.current) return;
+      initDoneRef.current = true;
+
+      // 1. 检测后端可用性，决定使用哪种模式
+      const hasBackend = await storage.detectBackendMode();
+      setUsingLocalMode(storage.isLocalMode());
+      console.log(`[亮品牌] 运行模式: ${storage.isLocalMode() ? '本地存储（LocalStorage）' : '服务器 API'}`);
+
+      // 2. 加载公开设置
       if (!settingsInitRef.current) {
         settingsInitRef.current = true;
         try {
-          const settings = await loadAndApplyTheme();
-          setPublicSettings({ ...settings });
+          if (storage.isLocalMode()) {
+            setPublicSettings({ ...DEFAULT_PUBLIC_SETTINGS });
+          } else {
+            const settings = await loadAndApplyTheme();
+            setPublicSettings({ ...settings });
+          }
         } catch {
-          // 忽略
+          setPublicSettings({ ...DEFAULT_PUBLIC_SETTINGS });
         }
       }
 
+      // 3. 尝试恢复登录状态
+      let hasValidUser = false;
       const token = api.getToken();
       if (token) {
         try {
           const currentUser = await storage.getCurrentUser();
           setUser(currentUser);
-          sessionStorage.setItem('lb_role', currentUser.role);
-          await refresh();
+          safeSessionSet('lb_role', currentUser.role);
+          hasValidUser = true;
         } catch {
-          // Token 过期，清除
+          // Token 无效，清除
           api.setToken(null);
         }
       }
+
+      // 4. 加载数据
+      if (hasValidUser) {
+        await refresh();
+      }
+
       setLoading(false);
     }
     init();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refresh]);
 
   return (
     <AppContext.Provider value={{
       user, isAuthenticated: !!user, role,
-      login, logout, updateUser, switchRole,
+      login: doLogin, logout, updateUser, switchRole,
       customers, projects, quotes, reviewTasks,
       refresh, loading,
+      isLocalMode: usingLocalMode,
       publicSettings, refreshPublicSettings,
     }}>
       {children}

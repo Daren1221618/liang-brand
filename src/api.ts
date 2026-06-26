@@ -7,20 +7,27 @@
 // API 基础地址：开发环境走 Vite proxy，生产环境走同源
 const API_BASE = import.meta.env.DEV ? '' : '';
 
+// 安全读取 sessionStorage（某些环境下可能不可用）
+function safeSessionGet(key: string): string | null {
+  try { return sessionStorage.getItem(key); } catch { return null; }
+}
+function safeSessionSet(key: string, value: string | null): void {
+  try {
+    if (value) sessionStorage.setItem(key, value);
+    else sessionStorage.removeItem(key);
+  } catch { /* ignore */ }
+}
+
 class ApiClient {
   private token: string | null = null;
 
   constructor() {
-    this.token = sessionStorage.getItem('lb_token');
+    this.token = safeSessionGet('lb_token');
   }
 
   setToken(token: string | null) {
     this.token = token;
-    if (token) {
-      sessionStorage.setItem('lb_token', token);
-    } else {
-      sessionStorage.removeItem('lb_token');
-    }
+    safeSessionSet('lb_token', token);
   }
 
   getToken(): string | null {

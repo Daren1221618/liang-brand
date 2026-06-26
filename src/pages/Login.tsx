@@ -6,6 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { Form, Input, Button, Typography, message, Alert, Space, Tag } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import api from '../api';
+import { login as storageLogin, isLocalMode } from '../storage';
 import type { UserInfo } from '../userTypes';
 import { ROLE_CONFIG } from '../permissions';
 import type { Role } from '../userTypes';
@@ -49,8 +50,15 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
     setLoading(true);
     setError('');
     try {
-      const res = await api.post<{ token: string; user: UserInfo }>('/api/auth/login', { username, password });
-      api.setToken(res.token);
+      // 双模式登录：本地模式用 localStorage 验证，否则走后端 API
+      let res: { token: string; user: UserInfo };
+      if (isLocalMode()) {
+        res = await storageLogin(username, password);
+        api.setToken(res.token);
+      } else {
+        res = await api.post<{ token: string; user: UserInfo }>('/api/auth/login', { username, password });
+        api.setToken(res.token);
+      }
       onLogin(res.user, res.token);
       message.success(`欢迎回来，${res.user.displayName}`);
     } catch (err: any) {

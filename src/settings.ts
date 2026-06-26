@@ -1,8 +1,10 @@
 // ============================================================
-// 亮品牌 · 设置 API 客户端
+// 亮品牌 · 设置 API 客户端（双模式）
 // ============================================================
 
 import api from './api';
+import { isLocalMode } from './storage';
+import { DEFAULT_PUBLIC_SETTINGS } from './localDb';
 
 export interface SettingItem {
   key: string;
@@ -27,6 +29,7 @@ export async function getSettingsByCategory(category: string): Promise<SettingIt
 
 /** 获取公开设置（非 admin 也可调用，前端主题初始化用） */
 export async function getPublicSettings(): Promise<Record<string, string>> {
+  if (isLocalMode()) return { ...DEFAULT_PUBLIC_SETTINGS };
   return api.get<Record<string, string>>('/api/settings/public/info');
 }
 
@@ -54,7 +57,7 @@ export async function resetSettingsCategory(category: string): Promise<{ message
 export async function uploadLogo(file: File): Promise<{ url: string; message: string }> {
   const formData = new FormData();
   formData.append('logo', file);
-  const token = (api as any).getToken?.() || sessionStorage.getItem('lb_token');
+  const token = (api as any).getToken?.() || (() => { try { return sessionStorage.getItem('lb_token'); } catch { return null; } })();
   const res = await fetch('/api/settings/upload-logo', {
     method: 'POST',
     headers: token ? { Authorization: `Bearer ${token}` } : {},

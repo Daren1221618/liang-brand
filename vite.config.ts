@@ -3,7 +3,8 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  base: './',
+  // GitHub Pages 需要仓库路径前缀，本地开发用相对路径 './'
+  base: process.env.VITE_BASE || './',
   server: {
     port: 3000,
     host: true,

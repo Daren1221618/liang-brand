@@ -98,8 +98,8 @@ export default function ProjectEngine() {
 
   // ======================== Render ========================
 
-  const needBrandCheck = !project.brandChecklist || Object.keys(project.brandChecklist).filter(k => project.brandChecklist[k]?.trim()).length < 5;
-  const needTimeline = !project.brandTimeline || project.brandTimeline.entries.length === 0;
+  const needBrandCheck = !project?.brandChecklist || Object.keys(project.brandChecklist).filter(k => project.brandChecklist[k]?.trim()).length < 5;
+  const needTimeline = !project?.brandTimeline?.entries || project.brandTimeline.entries.length === 0;
 
   return (
     <div className="page-container">

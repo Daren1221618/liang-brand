@@ -5,6 +5,8 @@
 
 import type { Customer, Project, Quote, ReviewTask, ProjectDeliverable } from './types';
 import type { EngineType, ID, ProjectPhase, DeliverableStatus } from './types';
+import { createEmptyTimeline } from './brandTimeline';
+import { createEmptyChecklist } from './brandChecklist';
 
 const NOW = Date.now();
 const DAY = 86400000;
@@ -347,8 +349,8 @@ function buildLaiXiliProject(): Project {
       { month: 5, phase: 'image' as ProjectPhase, engineTypes: ['image','marketing'], tasks: ['形象系统深化', '新媒体传播方案'], keyDeliverables: ['《品牌体验系统手册》', '《新媒体传播方案》'], status: 'pending' },
       { month: 6, phase: 'delivery' as ProjectPhase, engineTypes: ['organization'], tasks: ['运营标准制定', '组织培训', '成果汇总移交'], keyDeliverables: ['《运营标准手册》', '全套领航交付包'], status: 'pending' },
     ],
-    brandChecklist: {} as any,
-    brandTimeline: {} as any,
+    brandChecklist: createEmptyChecklist(),
+    brandTimeline: createEmptyTimeline(),
   };
 }
 
@@ -398,8 +400,8 @@ function buildYunLuTeaProject(): Project {
       { month: 6, phase: 'marketing' as ProjectPhase, engineTypes: ['marketing'], tasks: ['营销策略','传播方案'], keyDeliverables: ['营销框架'], status: 'completed' },
       { month: 7, phase: 'organization' as ProjectPhase, engineTypes: ['organization'], tasks: ['运营标准','培训体系'], keyDeliverables: ['SOP手册'], status: 'completed' },
     ].map((m, i) => ({ ...m, month: i + 1 })),
-    brandChecklist: {} as any,
-    brandTimeline: {} as any,
+    brandChecklist: createEmptyChecklist(),
+    brandTimeline: createEmptyTimeline(),
   };
 }
 
@@ -431,8 +433,8 @@ function buildXingHeEduProject(): Project {
       { month: 2, phase: 'competition' as ProjectPhase, engineTypes: ['competition'], tasks: ['竞品调研','趋势分析'], keyDeliverables: ['《竞争生态圈层分析报告》'], status: 'in_progress' },
       { month: 3, phase: 'strategy' as ProjectPhase, engineTypes: ['strategy'], tasks: ['战略解码','品牌定位'], keyDeliverables: ['《企业战略与品牌定位白皮书》'], status: 'pending' },
     ],
-    brandChecklist: {} as any,
-    brandTimeline: {} as any,
+    brandChecklist: createEmptyChecklist(),
+    brandTimeline: createEmptyTimeline(),
   };
 }
 
